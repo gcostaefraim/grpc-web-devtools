@@ -6,13 +6,16 @@ async function* readMessage(req, stream) {
   for await (const m of stream) {
     if (m) {
       const resp = m.toJson?.();
-      window.postMessage({
-        type: "__GRPCWEB_DEVTOOLS__",
-        methodType: "server_streaming",
-        method: req.method.name,
-        request: req.message.toJson?.(),
-        response: resp,
-      }, "*");
+      window.postMessage(
+        {
+          type: "__GRPCWEB_DEVTOOLS__",
+          methodType: "server_streaming",
+          method: req.method.name,
+          request: req.message,
+          response: resp,
+        },
+        "*"
+      );
     }
     yield m;
   }
@@ -27,32 +30,38 @@ const interceptor = (next) => async (req) => {
   try {
     const resp = await next(req);
     if (!resp.stream) {
-      window.postMessage({
-        type: "__GRPCWEB_DEVTOOLS__",
-        methodType: "unary",
-        method: req.method.name,
-        request: req.message.toJson(),
-        response: resp.message.toJson(),
-      }, "*")
+      window.postMessage(
+        {
+          type: "__GRPCWEB_DEVTOOLS__",
+          methodType: "unary",
+          method: req.method.name,
+          request: req.message,
+          response: resp.message,
+        },
+        "*"
+      );
       return resp;
     } else {
       return {
         ...resp,
         message: readMessage(req, resp.message),
-      }
+      };
     }
   } catch (e) {
-    window.postMessage({
-      type: "__GRPCWEB_DEVTOOLS__",
-      methodType: req.stream ? "server_streaming" : "unary",
-      method: req.method.name,
-      request: req.message.toJson?.(),
-      response: undefined,
-      error: {
-        message: e.message,
-        code: e.code,
-      }
-    }, "*")
+    window.postMessage(
+      {
+        type: "__GRPCWEB_DEVTOOLS__",
+        methodType: req.stream ? "server_streaming" : "unary",
+        method: req.method.name,
+        request: req.message,
+        response: undefined,
+        error: {
+          message: e.message,
+          code: e.code,
+        },
+      },
+      "*"
+    );
     throw e;
   }
 };
